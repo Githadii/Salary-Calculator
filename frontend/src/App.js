@@ -16,7 +16,6 @@ function App() {
   const [newAmount, setNewAmount] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [isEpfEft, setIsEpfEft] = useState(false);
-  const [apit, setApit] = useState(0);
 
   const handleResetClick = () => {
     setShowModal(true);
@@ -77,40 +76,47 @@ function App() {
     setShowModal(false);
   };
 
+  // Apply tax rates based on IRD guidelines
+const calculateApit = (taxableIncome) => {
+  let apit = 0;
+
+  if (taxableIncome <= 100000) {
+      apit = 0;  // Relief from tax
+  } else if (taxableIncome<= 141667) {
+      apit = (taxableIncome * 0.06) - 6000;
+  } else if (taxableIncome <= 183333) {
+      apit = (taxableIncome * 0.12) - 14500;
+  } else if (taxableIncome<= 225000) {
+      apit = (taxableIncome * 0.18) - 25500;
+  } else if (taxableIncome <= 266667) {
+      apit = (taxableIncome * 0.24) - 39000;
+  } else if (taxableIncome <= 308333) {
+      apit = (taxableIncome * 0.3) - 55000;
+  } else {
+      apit = (taxableIncome * 0.36) - 73500;
+  }
+  
+  return apit;
+};
+
+const handleCalculate = () => {
+  const taxableIncome = (parseFloat(basicSalary) + allowances.reduce((acc, cur) => acc + cur.amount, 0)).toFixed(2) - 
+  deductions.reduce((acc, cur) => acc + cur.amount, 0).toFixed(2);
+  const monthlyApit = calculateApit(taxableIncome);
+  //setApit(monthlyApit);
+  return monthlyApit.toFixed(2);
+};
+
   const calculateNetSalary = () => {
     const totalAllowances = allowances.reduce((acc, cur) => acc + cur.amount, 0);
-    const totalDeductions = deductions.reduce((acc, cur) => acc +  parseFloat(cur.amount), 0);
-    const grossEarning = parseFloat(basicSalary) + totalAllowances;
-    const epfEftAllowances = allowances.filter(a => a.isEpfEft).reduce((acc, cur) => acc + parseFloat(cur.amount), 0);
-    const employeeEpf = (parseFloat(basicSalary) + epfEftAllowances - (deductions.reduce((acc, cur) => acc + cur.amount, 0))) * 0.08;
-
-    const taxableIncome = grossEarning - totalDeductions - employeeEpf;
-    
-
-// Apply tax rates based on IRD guidelines
-
-  let apit = 0;
-if (taxableIncome <= 100000) {
-    apit = 0;  // relief from tax
-} else if (taxableIncome <= 141667) {
-    apit = taxableIncome * 0.06
-}else if (taxableIncome <= 183333){
-    apit = taxableIncome * 0.12
-}else if (taxableIncome <= 225000){
-  apit = taxableIncome * 0.18
-}else if (taxableIncome <= 266667){
-  apit = taxableIncome * 0.24
-}else if (taxableIncome <= 308333){
-  apit = taxableIncome * 0.3
-}
- else {
-  apit = taxableIncome * 0.36
-}
-
-
-
-    
-    const netSalary = grossEarning - totalDeductions - employeeEpf - apit;
+    const totalDeductions = deductions.reduce((acc, cur) => acc + cur.amount, 0).toFixed(2);
+    const grossEarning = (parseFloat(basicSalary) + totalAllowances).toFixed(2) - totalDeductions;
+    const employeeEpf = ((parseFloat(basicSalary) + allowances.filter(a => a.isEpfEft).reduce((acc, cur) => 
+      acc + cur.amount, 0)- (deductions.reduce((acc, cur) => acc + cur.amount, 0)))   * 0.08)
+      .toFixed(2);
+    const taxableIncome = grossEarning;
+    const monthlyApit = calculateApit(taxableIncome);
+    const netSalary = (grossEarning - employeeEpf - monthlyApit.toFixed(2));
     return netSalary.toFixed(2);
   };
 
@@ -125,8 +131,6 @@ if (taxableIncome <= 100000) {
   };
 
  
-
-
   return (
     <div>
        <main style={{marginLeft:"20px",marginTop:"20px"}}> 
@@ -135,7 +139,7 @@ if (taxableIncome <= 100000) {
         <Card 
         style={{
           width :"680px",
-          height:"550px",
+          height:"616px",
           border:"1px solid #000000",
           backgroundColor: "#f8f9fa" ,
           position: "relative"  }}>
@@ -162,15 +166,15 @@ if (taxableIncome <= 100000) {
          value={basicSalary} 
          onChange={(e) => setBasicSalary(e.target.value)} 
         />
-        </Form.Group><br></br>
+        </Form.Group>
    
     <Form.Label>Earnings</Form.Label>
-    <p>Allowance, Fixed Allowance, Bonus and etc.</p>
+    <p style={{color:"GrayText",fontSize:"13px"}}>Allowance, Fixed Allowance, Bonus and etc.</p>
     {allowances.map((allowance, index) => (
     <div key={index}>
     <p>{allowance.description}: {allowance.amount ? allowance.amount.toFixed(2) : '0.00'}{allowance.isEpfEft ? ' ✓ EPF/ETF' : ''}</p>
     <Button variant="outline-secondary" onClick={() => handleEdit('allowance', index)}>✎</Button>
-    <Button variant="outline-danger" onClick={() => handleDelete('allowance', index)}>✗</Button>
+    <Button style={{marginLeft:"5px"}} variant="outline-danger" onClick={() => handleDelete('allowance', index)}>✗</Button>
     </div>
     ))}
    
@@ -183,17 +187,17 @@ if (taxableIncome <= 100000) {
     onClick={() => handleAddClick('allowance')}
     >
       + Add New Allowance
-    </Button><br></br><br></br>
+    </Button>
 
     <hr style={{marginRight:"10px"}}></hr>
 
     <Form.Label>Deductions</Form.Label>
-    <p>Salary Advances, Loan Deductions and all</p>
+    <p style={{color:"GrayText",fontSize:"13px"}}>Salary Advances, Loan Deductions and all</p>
     {deductions.map((deduction, index) => (
     <div key={index}>
     <p>{deduction.description}: {deduction.amount ? deduction.amount.toFixed(2) : '0.00'}</p>
     <Button variant="outline-secondary" onClick={() => handleEdit('deduction', index)}>✎</Button>
-    <Button variant="outline-danger" onClick={() => handleDelete('deduction', index)}>✗</Button>
+    <Button style={{marginLeft:"5px"}} variant="outline-danger" onClick={() => handleDelete('deduction', index)}>✗</Button>
     </div>
     ))}
     <Button style={{
@@ -218,7 +222,7 @@ if (taxableIncome <= 100000) {
           marginBottom:"20px",
           marginLeft:"90px",
           width :"480px",
-          height:"550px",
+          height:"614px",
           border:"1px solid #000000",
           backgroundColor: "#f8f9fa"
            }}>
@@ -243,12 +247,13 @@ if (taxableIncome <= 100000) {
               </Row>
               <Row>
                 <Col>Employee EPF (8%)</Col>
-                <Col>- {((parseFloat(basicSalary) + allowances.filter(a => a.isEpfEft).reduce((acc, cur) => acc + cur.amount, 0)) * 0.08)
+                <Col>- {((parseFloat(basicSalary) + allowances.filter(a => a.isEpfEft).reduce((acc, cur) => 
+                acc + cur.amount, 0)- (deductions.reduce((acc, cur) => acc + cur.amount, 0)))   * 0.08)
                 .toFixed(2)}</Col>
               </Row>
               <Row>
                 <Col>APIT</Col>
-                <Col></Col>
+                <Col>- {handleCalculate()}</Col>
               </Row>
               <hr />
               <Row className="mt-3">
